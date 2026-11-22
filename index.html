@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
-<title>Strong 12 – 12-week workout tracker</title>
+<title>Strong 6 – 6-week gym tracker</title>
 <style>
 :root{
   --bg:#f6f7f5; --card:#fff; --ink:#1b2321; --muted:#64706c; --line:#e1e6e3;
@@ -75,8 +75,8 @@ details summary{cursor:pointer;font-weight:600}
 </head>
 <body>
 <header>
-  <h1>Strong 12</h1>
-  <div class="sub">12 weeks · 3 days a week · build strength with good technique</div>
+  <h1>Strong 6</h1>
+  <div class="sub">6 weeks · Monday + Friday gym sessions · strength and power</div>
 </header>
 <main id="app"></main>
 <nav class="tabs" role="tablist" aria-label="Sections">
@@ -89,45 +89,32 @@ details summary{cursor:pointer;font-weight:600}
 <script>
 "use strict";
 /* ---------- Program ---------- */
+// load: label for the extra-load column (null = bodyweight only). prog: suggest weight bumps.
+const WEEKS = 6;
 const DAYS = [
-  { id:"d1", name:"Day 1", focus:"Legs + push", ex:[
-    {id:"squat",  name:"Goblet squat", type:"main", cue:"Hold one dumbbell at your chest. Sit between your hips, chest tall, heels down."},
-    {id:"bench",  name:"Dumbbell bench press", type:"main", cue:"Feet flat, shoulder blades back. Lower under control, press up. Push-ups are a fine swap."},
-    {id:"rdl",    name:"Dumbbell Romanian deadlift", type:"acc", cue:"Soft knees, hips go back, flat back. Feel it in the hamstrings."},
-    {id:"row1",   name:"Seated cable row", type:"acc", cue:"Squeeze shoulder blades together, don't swing your body."},
-    {id:"plank",  name:"Plank", type:"core", cue:"Straight line from head to heels. Stop when form slips."}
+  { id:"mon", name:"Monday", focus:"Gym: lower body + power", ex:[
+    {id:"m1a", label:"1a", name:"Trap bar deadlift", sets:3, reps:6, load:"kg", prog:true, cue:"Flat back, push the floor away, stand tall. Control the way down. Every rep should look the same."},
+    {id:"m1b", label:"1b", name:"Pogo jumps", sets:3, reps:10, load:null, cue:"Stiff ankles, quick springy contacts, tall posture. Think \"hot floor\"."},
+    {id:"m2a", label:"2a", name:"Goblet squat", sets:3, reps:6, load:"kg", prog:true, cue:"Dumbbell or kettlebell at your chest. Chest tall, sit between the hips, heels down."},
+    {id:"m2b", label:"2b", name:"Medicine ball slam", sets:3, reps:5, load:"ball kg", cue:"Reach tall, slam hard into the floor using your whole body. Max effort every rep."},
+    {id:"m3a", label:"3a", name:"Box jumps", sets:3, reps:5, load:"box cm", cue:"Jump up, land softly and fully on the box, stand up, then step down. Reset between reps."},
+    {id:"m3b", label:"3b", name:"Leg raises", sets:3, reps:8, load:null, cue:"Lower back stays pressed down. Slow on the way down, no swinging."}
   ]},
-  { id:"d2", name:"Day 2", focus:"Hinge + pull", ex:[
-    {id:"trap",   name:"Trap bar deadlift", type:"main", cue:"Start light. Flat back, push the floor away, stand tall. Technique before weight."},
-    {id:"ohp",    name:"Dumbbell shoulder press", type:"main", cue:"Brace your core, press straight up, don't arch your lower back."},
-    {id:"split",  name:"Reverse lunge (each leg)", type:"acc", cue:"Step back, lower the back knee toward the floor, drive through the front heel."},
-    {id:"pull",   name:"Lat pulldown", type:"acc", cue:"Pull the bar to your upper chest, elbows down, no leaning way back."},
-    {id:"deadbug",name:"Dead bug", type:"core", cue:"Lower back stays flat to the floor. Slow and controlled. Count reps per side pair."}
-  ]},
-  { id:"d3", name:"Day 3", focus:"Full body", ex:[
-    {id:"stepup", name:"Step-up (each leg)", type:"main", cue:"Use a knee-height box. Push through the whole front foot, control the way down."},
-    {id:"incl",   name:"Incline push-up or incline DB press", type:"main", cue:"Body in a straight line. Make it harder by lowering the incline."},
-    {id:"bridge", name:"Glute bridge", type:"acc", cue:"Drive hips up, squeeze glutes at the top, ribs down."},
-    {id:"row2",   name:"One-arm dumbbell row", type:"acc", cue:"Flat back, pull elbow to hip. Keep the dumbbell path smooth."},
-    {id:"side",   name:"Side plank (each side)", type:"core", cue:"Hips stacked and lifted. Rest between sides."}
+  { id:"fri", name:"Friday", focus:"Gym: single leg + power", ex:[
+    {id:"f1a", label:"1a", name:"Single leg deadlift", sets:3, reps:8, load:"kg", prog:true, cue:"Hinge at the hip, back leg reaches long, flat back, hips square. Light weight until balance is solid."},
+    {id:"f1b", label:"1b", name:"Broad jumps", sets:3, reps:5, load:"cm", cue:"Swing arms, jump forward, stick the landing for a second. Log your distance if you measure it."},
+    {id:"f2a", label:"2a", name:"Bulgarian split squat", sets:3, reps:5, perLeg:true, load:"kg", prog:true, cue:"Back foot on a bench, front knee tracks over the toes, drop straight down. Do all reps on one leg, then switch."},
+    {id:"f2b", label:"2b", name:"Pogo jumps", sets:3, reps:10, load:null, cue:"Stiff ankles, quick springy contacts, tall posture."},
+    {id:"f3a", label:"3a", name:"Weighted seated jumps", sets:3, reps:3, repText:"3 weighted + 1 no weight", load:"kg", cue:"Sit on a box, jump up from a dead start. Do 3 reps holding the weight, then rep 4 without it. Log the weighted reps."},
+    {id:"f3b", label:"3b", name:"Ab rollout", sets:3, reps:8, load:null, cue:"Brace the core, roll out only as far as your lower back stays flat. Stop before it sags."}
   ]}
 ];
 const ALL_EX = DAYS.flatMap(d => d.ex.map(e => ({...e, day:d.id})));
-const EASY_WEEKS = [4,8,12];
-const phaseOf = w => w<=4 ? {n:1,name:"Foundation"} : w<=8 ? {n:2,name:"Build"} : {n:3,name:"Strength"};
-const isEasy = w => EASY_WEEKS.includes(w);
-function setsFor(w, ex){ if(isEasy(w)) return 2; return (w<=2) ? 2 : 3; }
-function repsFor(w, ex){
-  if(ex.type==="core") return {lo:20, hi:40, unit:"sec"};
-  const p = phaseOf(w).n;
-  if(p===1) return {lo:10, hi:12, unit:"reps"};
-  if(p===2) return {lo:8,  hi:12, unit:"reps"};
-  return ex.type==="main" ? {lo:6, hi:10, unit:"reps"} : {lo:8, hi:12, unit:"reps"};
-}
+const targetText = ex => ex.sets + " × " + (ex.repText || ex.reps) + (ex.perLeg ? " / leg" : "");
 
 /* ---------- State ---------- */
-const KEY = "strong12-v1";
-const DEFAULTS = () => ({unit:"kg", week:1, day:0, tab:"train", logs:{}, notes:{}});
+const KEY = "strong6-v1";
+const DEFAULTS = () => ({week:1, day:0, tab:"train", logs:{}, notes:{}});
 let S;
 try { S = Object.assign(DEFAULTS(), JSON.parse(localStorage.getItem(KEY) || "{}")); } catch(e){ S = DEFAULTS(); }
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
@@ -147,23 +134,23 @@ function lastBest(exId, week){
   for(let w=week-1; w>=1; w--){
     const log = getLog(w, exId);
     if(!log) continue;
-    const done = log.sets.filter(s => s.done && num(s.r)!==null);
+    const done = log.sets.filter(s => s.done);
     if(!done.length) continue;
-    const best = done.reduce((a,b) => ((num(b.w)||0) > (num(a.w)||0) || ((num(b.w)||0)===(num(a.w)||0) && num(b.r)>num(a.r))) ? b : a);
-    return {week:w, best, sets:done, all:log.sets};
+    const best = done.reduce((a,b) => ((num(b.w)||0) > (num(a.w)||0) || ((num(b.w)||0)===(num(a.w)||0) && (num(b.r)||0)>(num(a.r)||0))) ? b : a);
+    return {week:w, best, sets:done};
   }
   return null;
 }
 function dayCompletion(w, day){
   let total=0, done=0;
   day.ex.forEach(ex => {
-    const n = setsFor(w,ex); total += n;
+    total += ex.sets;
     const log = getLog(w, ex.id);
-    if(log) done += Math.min(n, log.sets.filter(s => s.done).length);
+    if(log) done += Math.min(ex.sets, log.sets.filter(s => s.done).length);
   });
   return total ? done/total : 0;
 }
-function topWeight(w, exId){
+function topLoad(w, exId){
   const log = getLog(w, exId); if(!log) return null;
   const ws = log.sets.filter(s => s.done && num(s.w)!==null).map(s => num(s.w));
   return ws.length ? Math.max(...ws) : null;
@@ -177,60 +164,59 @@ function render(){
 }
 
 function renderTrain(){
-  const w = S.week, ph = phaseOf(w), day = DAYS[S.day];
+  const w = S.week, day = DAYS[S.day];
   const pct = Math.round(dayCompletion(w, day)*100);
-  const repsExample = repsFor(w, {type:"main"});
   let html = `
   <div class="card">
     <div class="weekbar">
       <button id="prevW" aria-label="Previous week" ${w<=1?"disabled":""}>‹</button>
-      <div class="label"><b>Week ${w} of 12</b><br>
-        <span class="pill ${isEasy(w)?"easy":""}">${isEasy(w)?"Easy week":ph.name}</span></div>
-      <button id="nextW" aria-label="Next week" ${w>=12?"disabled":""}>›</button>
+      <div class="label"><b>Week ${w} of ${WEEKS}</b></div>
+      <button id="nextW" aria-label="Next week" ${w>=WEEKS?"disabled":""}>›</button>
     </div>
-    <p class="small muted" style="margin:10px 0 0">${
-      isEasy(w) ? "Easy week: only 2 sets, use the same weights as last week and stop with plenty left. Recovery is when you get stronger." :
-      w<=4 ? "Learn the moves. Light weights, perfect form, 2–3 reps left in the tank." :
-      w<=8 ? "Add weight a little at a time once you hit the top of the rep range on every set." :
-      "Heavier main lifts with fewer reps. Technique stays the boss."}</p>
-    <div class="days" role="group" aria-label="Workout day">
-      ${DAYS.map((d,i)=>`<button data-day="${i}" aria-pressed="${i===S.day}">${d.name}<small>${d.focus}</small></button>`).join("")}
+    <p class="small muted" style="margin:10px 0 0">Same sets and reps every week. The goal is better quality and a little more load or height when it feels easy and looks clean.</p>
+    <div class="days" role="group" aria-label="Workout day" style="grid-template-columns:repeat(2,1fr)">
+      ${DAYS.map((d,i)=>`<button data-day="${i}" aria-pressed="${i===S.day}">${d.name}<small>${d.focus.replace("Gym: ","")}</small></button>`).join("")}
     </div>
   </div>
   <div class="card">
-    <div class="row between"><b>${day.name}: ${day.focus}</b><span class="small muted">${pct}% done</span></div>
+    <div class="row between"><b>${day.name}</b><span class="small muted">${pct}% done</span></div>
     <div class="progress" aria-hidden="true"><i style="width:${pct}%"></i></div>
-    <details style="margin-top:10px"><summary>Warm-up (5–8 min)</summary>
+    <details style="margin-top:10px"><summary>Warm-up (8–10 min)</summary>
       <ul class="tight small">
-        <li>2–3 min easy cardio (bike, row, brisk walk)</li>
-        <li>10 bodyweight squats, 10 hip hinges, 10 arm circles each way</li>
-        <li>1–2 light warm-up sets of your first exercise</li>
+        <li>3–5 min easy cardio (bike, row, skipping)</li>
+        <li>10 bodyweight squats, 10 hip hinges, 10 leg swings each leg, 10 arm circles</li>
+        <li>A few low pogo hops and one easy practice jump</li>
+        <li>1–2 light warm-up sets of the first lift</li>
       </ul></details>
+    <p class="small muted" style="margin:10px 0 0">Pairs: do <b>a</b>, rest about 60–90 sec, do <b>b</b>, rest, repeat for 3 rounds. Then move on to the next pair.</p>
   </div>`;
   day.ex.forEach(ex => {
-    const n = setsFor(w, ex), r = repsFor(w, ex);
     const log = getLog(w, ex.id);
-    const rows = Math.max(n, log ? log.sets.length : 0);
+    const rows = Math.max(ex.sets, log ? log.sets.length : 0);
     const last = lastBest(ex.id, w);
     let hint = "";
-    if(last && ex.type!=="core"){
-      const allHitTop = last.sets.length >= setsFor(last.week, ex) && last.sets.every(s => num(s.r) >= r.hi);
-      hint = `Last time (week ${last.week}): <b>${esc(last.best.w||"BW")}${last.best.w?" "+S.unit:""} × ${esc(last.best.r)}</b>` +
-        (allHitTop ? ` · You hit the top of the range. Try a small bump (about ${S.unit==="kg"?"1–2.5 kg":"2.5–5 lb"}).` : ` · Match it or beat it by a rep.`);
-    } else if(last){
-      hint = `Last time (week ${last.week}): <b>${esc(last.best.r)} sec</b>`;
+    if(last){
+      const bestTxt = (last.best.w!=="" && ex.load ? esc(last.best.w)+" "+ex.load+" × " : "") + esc(last.best.r || ex.reps) + (ex.load===null ? " reps" : "");
+      const hitAll = last.sets.length >= ex.sets && last.sets.every(s => (num(s.r)||0) >= ex.reps);
+      let tip = " · Match it or beat it with better form.";
+      if(hitAll && ex.prog) tip = " · You got every rep. If it felt solid, add a small bit of weight (1–2.5 kg).";
+      else if(hitAll && ex.load==="box cm") tip = " · Only go higher if landings are quiet and balanced.";
+      hint = `Last time (week ${last.week}): <b>${bestTxt}</b>${tip}`;
     }
     html += `<div class="card ex" data-ex="${ex.id}">
-      <div class="row between wrap"><h3>${esc(ex.name)}</h3>
-        <span class="target">${n} × ${r.lo}–${r.hi} ${r.unit}</span></div>
+      <div class="row between wrap"><h3><span class="pill">${ex.label}</span> ${esc(ex.name)}</h3>
+        <span class="target">${esc(targetText(ex))}</span></div>
       <p class="cue">${esc(ex.cue)}</p>
       ${hint ? `<p class="hint">${hint}</p>` : ""}
-      <table class="sets"><thead><tr><th>Set</th><th>${S.unit}</th><th>${r.unit}</th><th>Done</th></tr></thead><tbody>`;
+      <table class="sets"><thead><tr><th>Set</th><th>${ex.load ? esc(ex.load) : "Load"}</th><th>Reps</th><th>Done</th></tr></thead><tbody>`;
     for(let i=0;i<rows;i++){
       const s = (log && log.sets[i]) || {w:"",r:"",done:false};
+      const loadCell = ex.load
+        ? `<input type="number" inputmode="decimal" step="any" min="0" placeholder="${last&&last.best.w!==""?esc(last.best.w):""}" value="${esc(s.w)}" data-ex="${ex.id}" data-i="${i}" data-f="w" aria-label="${esc(ex.name)} set ${i+1} ${esc(ex.load)}">`
+        : `<span class="muted small">BW</span>`;
       html += `<tr><td class="n">${i+1}</td>
-        <td><input type="number" inputmode="decimal" step="any" min="0" placeholder="${last&&last.best.w?esc(last.best.w):"BW"}" value="${esc(s.w)}" data-ex="${ex.id}" data-i="${i}" data-f="w" aria-label="${esc(ex.name)} set ${i+1} weight"></td>
-        <td><input type="number" inputmode="numeric" step="1" min="0" placeholder="${r.hi}" value="${esc(s.r)}" data-ex="${ex.id}" data-i="${i}" data-f="r" aria-label="${esc(ex.name)} set ${i+1} ${r.unit}"></td>
+        <td>${loadCell}</td>
+        <td><input type="number" inputmode="numeric" step="1" min="0" placeholder="${ex.reps}" value="${esc(s.r)}" data-ex="${ex.id}" data-i="${i}" data-f="r" aria-label="${esc(ex.name)} set ${i+1} reps"></td>
         <td><input type="checkbox" ${s.done?"checked":""} data-ex="${ex.id}" data-i="${i}" data-f="done" aria-label="${esc(ex.name)} set ${i+1} done"></td></tr>`;
     }
     html += `</tbody></table>
@@ -245,77 +231,66 @@ function renderTrain(){
 }
 
 function renderProgress(){
-  const sel = S.chartEx && ALL_EX.find(e=>e.id===S.chartEx) ? S.chartEx : "trap";
-  const ex = ALL_EX.find(e => e.id===sel);
+  const loaded = ALL_EX.filter(e => e.load);
+  const sel = loaded.find(e=>e.id===S.chartEx) ? S.chartEx : loaded[0].id;
+  const ex = loaded.find(e => e.id===sel);
   const pts = [];
-  for(let w=1; w<=12; w++){ const t = topWeight(w, sel); if(t!==null) pts.push({w, v:t}); }
-  // chart
-  const W=320,H=170,pl=30,pr=10,pt=10,pb=24;
+  for(let w=1; w<=WEEKS; w++){ const t = topLoad(w, sel); if(t!==null) pts.push({w, v:t}); }
+  const W=320,H=170,pl=34,pr=10,pt=10,pb=24;
   const maxV = Math.max(10, ...pts.map(p=>p.v)); const top = Math.ceil(maxV*1.15/5)*5;
-  const x = w => pl + (w-1)*(W-pl-pr)/11, y = v => H-pb - v/top*(H-pt-pb);
-  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Top weight per week for ${esc(ex.name)}">`;
+  const x = w => pl + (w-1)*(W-pl-pr)/(WEEKS-1), y = v => H-pb - v/top*(H-pt-pb);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Top ${esc(ex.load)} per week for ${esc(ex.name)}">`;
   for(let i=0;i<=4;i++){ const v = top*i/4; svg += `<line x1="${pl}" x2="${W-pr}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${pl-4}" y="${y(v)+3}" text-anchor="end">${Math.round(v)}</text>`; }
-  for(let w=1; w<=12; w++) svg += `<text x="${x(w)}" y="${H-8}" text-anchor="middle">${w}</text>`;
+  for(let w=1; w<=WEEKS; w++) svg += `<text x="${x(w)}" y="${H-8}" text-anchor="middle">${w}</text>`;
   if(pts.length){
     svg += `<polyline fill="none" stroke="var(--accent)" stroke-width="2.5" points="${pts.map(p=>`${x(p.w)},${y(p.v)}`).join(" ")}"/>`;
-    pts.forEach(p => svg += `<circle cx="${x(p.w)}" cy="${y(p.v)}" r="4" fill="var(--accent)"><title>Week ${p.w}: ${p.v} ${S.unit}</title></circle>`);
+    pts.forEach(p => svg += `<circle cx="${x(p.w)}" cy="${y(p.v)}" r="4" fill="var(--accent)"><title>Week ${p.w}: ${p.v} ${esc(ex.load)}</title></circle>`);
   } else svg += `<text x="${W/2}" y="${H/2}" text-anchor="middle">Log some sets to see your line</text>`;
   svg += `</svg>`;
   const first = pts[0], lastp = pts[pts.length-1];
-  const change = (first && lastp && lastp.w!==first.w) ? `${lastp.v-first.v>=0?"+":""}${+(lastp.v-first.v).toFixed(1)} ${S.unit} since week ${first.w}` : "";
+  const change = (first && lastp && lastp.w!==first.w) ? `${lastp.v-first.v>=0?"+":""}${+(lastp.v-first.v).toFixed(1)} ${ex.load} since week ${first.w}` : "";
 
   let totalDone=0;
   const grid = [];
-  for(let w=1; w<=12; w++){
+  for(let w=1; w<=WEEKS; w++){
     const cells = DAYS.map(d => dayCompletion(w,d));
-    cells.forEach((c,i)=>{ if(c>=0.8) totalDone++; });
-    grid.push(`<tr><td>Wk ${w}${isEasy(w)?" <span class='pill easy'>easy</span>":""}</td>${cells.map(c=>`<td><span class="dot ${c>=0.8?"full":c>0?"part":""}" title="${Math.round(c*100)}%"></span></td>`).join("")}</tr>`);
+    cells.forEach(c => { if(c>=0.8) totalDone++; });
+    grid.push(`<tr><td>Week ${w}</td>${cells.map(c=>`<td><span class="dot ${c>=0.8?"full":c>0?"part":""}" title="${Math.round(c*100)}%"></span></td>`).join("")}</tr>`);
   }
+  const total = WEEKS*DAYS.length;
   app.innerHTML = `
-  <div class="card"><div class="row between"><b>Workouts finished</b><span><b>${totalDone}</b> <span class="muted">/ 36</span></span></div>
-    <div class="progress" aria-hidden="true"><i style="width:${Math.round(totalDone/36*100)}%"></i></div>
+  <div class="card"><div class="row between"><b>Workouts finished</b><span><b>${totalDone}</b> <span class="muted">/ ${total}</span></span></div>
+    <div class="progress" aria-hidden="true"><i style="width:${Math.round(totalDone/total*100)}%"></i></div>
     <table class="grid" style="margin-top:10px"><thead><tr><th></th>${DAYS.map(d=>`<th>${d.name}</th>`).join("")}</tr></thead><tbody>${grid.join("")}</tbody></table>
     <p class="small muted">Filled = 80%+ of sets done. Half = started.</p></div>
-  <div class="card"><label for="chartEx"><b>Top weight by week</b></label>
-    <select id="chartEx" style="margin:8px 0">${ALL_EX.map(e=>`<option value="${e.id}" ${e.id===sel?"selected":""}>${esc(e.name)}</option>`).join("")}</select>
-    ${svg}<p class="small muted" style="margin:4px 0 0">${change || "Heaviest completed set each week (" + S.unit + ")."}</p></div>`;
+  <div class="card"><label for="chartEx"><b>Top load by week</b></label>
+    <select id="chartEx" style="margin:8px 0">${loaded.map(e=>`<option value="${e.id}" ${e.id===sel?"selected":""}>${esc(e.name)} (${esc(e.load)})</option>`).join("")}</select>
+    ${svg}<p class="small muted" style="margin:4px 0 0">${change || "Biggest completed load each week (" + esc(ex.load) + ")."}</p></div>`;
 }
 
 function renderGuide(){
   app.innerHTML = `
   <div class="card"><b>How this works</b>
     <ul class="tight small">
-      <li><b>3 days a week</b> with a rest day in between (e.g. Mon / Wed / Fri). Each workout is about 45–60 minutes.</li>
-      <li><b>Weeks 1–4 Foundation</b> (10–12 reps), <b>5–8 Build</b> (8–12), <b>9–12 Strength</b> (6–10 on main lifts).</li>
-      <li><b>Weeks 4, 8 and 12 are easy weeks</b> (2 sets) so your body can catch up.</li>
-      <li><b>Pick a weight</b> where the last 2–3 reps of each set feel tough but your form stays clean. If form slips, drop the weight.</li>
-      <li><b>Progress</b>: when you hit the top of the rep range on every set, add a small amount of weight next time and work back up.</li>
-      <li>Rest 60–90 seconds between sets (2 minutes after heavy deadlifts).</li>
+      <li><b>Monday and Friday</b> are gym days, about 60 minutes each. Keep at least one rest day between them.</li>
+      <li>Each day has 3 pairs. Do <b>a</b>, rest 60–90 sec, do <b>b</b>, rest, and repeat for 3 rounds. Rest about 2 minutes after heavy deadlifts and squats.</li>
+      <li>Same sets and reps for all 6 weeks. Log the weight (or box height / jump distance) each set and tick it off.</li>
+      <li><b>Strength lifts</b> (6 reps): pick a weight that leaves 1–2 reps in the tank. When you get every rep with clean form, add a little next time.</li>
+      <li><b>Jumps and throws</b>: quality over fatigue. Fresh, fast, powerful reps. If landings get loud or sloppy, stop the set.</li>
     </ul></div>
   <div class="card"><b>Safety</b>
     <ul class="tight small">
-      <li>Train with a coach, parent or experienced adult nearby, especially for deadlifts and bench press. Use safety bars or a spotter on the bench.</li>
-      <li>Learn each move with just the bar or very light weight first.</li>
+      <li>Train with a coach, parent or experienced adult nearby, especially for trap bar deadlifts, box jumps and weighted jumps.</li>
+      <li>Land softly on both feet with knees bent, in flat supportive shoes. Always step down from the box, don't jump down.</li>
+      <li>Use a stable box and a clear landing area. Start low and build height slowly.</li>
       <li>Sharp or joint pain means stop. Muscle burn and tiredness are normal.</li>
       <li>Eat enough, drink water and sleep 8–10 hours. Fueling matters more than the program.</li>
       <li>If you have a medical condition or an injury, check with a doctor before starting.</li>
-      <li>This is about getting strong and confident, not about body size. Progress means lifting better than you did last week.</li>
-    </ul></div>
-  <div class="card"><b>Swap guide</b>
-    <ul class="tight small">
-      <li>No trap bar? Use a dumbbell or kettlebell deadlift from a raised height.</li>
-      <li>No cable machine? Use a resistance-band row or pulldown.</li>
-      <li>Not ready for a bench press? Do push-ups, and raise the hands on a bench to make them easier.</li>
     </ul></div>`;
 }
 
 function renderData(){
   app.innerHTML = `
-  <div class="card"><b>Weight units</b>
-    <div class="row" style="margin-top:8px">
-      <button data-unit="kg" aria-pressed="${S.unit==="kg"}" class="${S.unit==="kg"?"primary":""}">kg</button>
-      <button data-unit="lb" aria-pressed="${S.unit==="lb"}" class="${S.unit==="lb"?"primary":""}">lb</button>
-    </div><p class="small muted">Changing this only changes the label. It doesn't convert numbers you've already entered.</p></div>
   <div class="card"><b>Export to a spreadsheet</b>
     <p class="small muted">Downloads a CSV with every set you've logged. It opens in Excel, Numbers and Google Sheets.</p>
     <button class="primary" id="csv">Download CSV</button></div>
@@ -337,15 +312,15 @@ function download(name, text, mime){
 }
 function csvCell(v){ v = String(v ?? ""); return /[",\n\r]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
 function buildCSV(){
-  const rows = [["Week","Phase","Day","Exercise","Set","Weight","Unit","Reps or seconds","Done","Day notes"]];
-  for(let w=1; w<=12; w++) DAYS.forEach(d => {
+  const rows = [["Week","Day","Exercise","Set","Load","Load unit","Reps","Target","Done","Day notes"]];
+  for(let w=1; w<=WEEKS; w++) DAYS.forEach(d => {
     let noteUsed = false;
     d.ex.forEach(ex => {
       const log = getLog(w, ex.id); if(!log) return;
       log.sets.forEach((s,i) => {
         if(s.w==="" && s.r==="" && !s.done) return;
         const note = noteUsed ? "" : (S.notes[`${w}|${d.id}`]||""); noteUsed = true;
-        rows.push([w, isEasy(w)?"Easy week":phaseOf(w).name, d.name, ex.name, i+1, s.w, s.w!==""?S.unit:"", s.r, s.done?"yes":"no", note]);
+        rows.push([w, d.name, ex.label+" "+ex.name, i+1, s.w, s.w!==""?(ex.load||""):"", s.r, targetText(ex), s.done?"yes":"no", note]);
       });
     });
   });
@@ -360,15 +335,14 @@ document.querySelector("nav.tabs").addEventListener("click", e => {
 app.addEventListener("click", e => {
   const t = e.target.closest("button"); if(!t) return;
   if(t.id==="prevW"){ S.week = Math.max(1,S.week-1); save(); render(); }
-  else if(t.id==="nextW"){ S.week = Math.min(12,S.week+1); save(); render(); }
+  else if(t.id==="nextW"){ S.week = Math.min(WEEKS,S.week+1); save(); render(); }
   else if(t.dataset.day!==undefined){ S.day = +t.dataset.day; save(); render(); }
   else if(t.dataset.addset){
     const ex = ALL_EX.find(x=>x.id===t.dataset.addset);
-    const log = ensureLog(S.week, ex.id, setsFor(S.week, ex)); log.sets.push({w:"",r:"",done:false}); save(); render();
+    const log = ensureLog(S.week, ex.id, ex.sets); log.sets.push({w:"",r:"",done:false}); save(); render();
   }
-  else if(t.dataset.unit){ S.unit = t.dataset.unit; save(); render(); }
-  else if(t.id==="csv") download(`strong12-log-${new Date().toISOString().slice(0,10)}.csv`, buildCSV(), "text/csv;charset=utf-8");
-  else if(t.id==="bk") download(`strong12-backup-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(S), "application/json");
+  else if(t.id==="csv") download(`strong6-log-${new Date().toISOString().slice(0,10)}.csv`, buildCSV(), "text/csv;charset=utf-8");
+  else if(t.id==="bk") download(`strong6-backup-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(S), "application/json");
   else if(t.id==="rs") document.getElementById("file").click();
   else if(t.id==="wipe"){ if(confirm("Erase your whole log on this device? This can't be undone.")){ S = DEFAULTS(); save(); render(); } }
 });
@@ -377,7 +351,7 @@ app.addEventListener("input", e => {
   if(el.dataset.note){ S.notes[el.dataset.note] = el.value; save(); return; }
   if(el.dataset.f && el.dataset.f!=="done"){
     const ex = ALL_EX.find(x=>x.id===el.dataset.ex);
-    const log = ensureLog(S.week, ex.id, setsFor(S.week, ex));
+    const log = ensureLog(S.week, ex.id, ex.sets);
     log.sets[+el.dataset.i][el.dataset.f] = el.value; save();
   }
 });
@@ -389,13 +363,13 @@ app.addEventListener("change", e => {
     f.text().then(txt => {
       try{ const d = JSON.parse(txt); if(!d || typeof d!=="object" || !d.logs) throw 0;
         S = Object.assign(DEFAULTS(), d); save(); S.tab="train"; render(); alert("Backup restored.");
-      }catch(err){ alert("That doesn't look like a Strong 12 backup file."); }
+      }catch(err){ alert("That doesn't look like a Strong 6 backup file."); }
     });
     return;
   }
   if(el.dataset.f==="done"){
     const ex = ALL_EX.find(x=>x.id===el.dataset.ex);
-    const log = ensureLog(S.week, ex.id, setsFor(S.week, ex));
+    const log = ensureLog(S.week, ex.id, ex.sets);
     log.sets[+el.dataset.i].done = el.checked; save(); render();
   }
 });
