@@ -3,16 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0f766e">
+<meta name="theme-color" content="#800000">
 <title>Strong 6 – 6-week gym tracker</title>
 <style>
 :root{
-  --bg:#f6f7f5; --card:#fff; --ink:#1b2321; --muted:#64706c; --line:#e1e6e3;
-  --accent:#0f766e; --accent-ink:#fff; --accent-soft:#d9f0ec; --warm:#e8590c; --ok:#2f9e44;
+  --bg:#f8f5f5; --card:#fff; --ink:#221a1c; --muted:#6e6164; --line:#e6dcde;
+  --accent:#800000; --accent-ink:#fff; --accent-soft:#f5e1e3; --warm:#b8860b; --ok:#800000;
 }
 @media (prefers-color-scheme: dark){
-  :root{--bg:#121816; --card:#1b2421; --ink:#eaf0ed; --muted:#93a39d; --line:#2b3733;
-    --accent:#2dd4bf; --accent-ink:#06201c; --accent-soft:#16332f; --warm:#ff8a4c; --ok:#69db7c;}
+  :root{--bg:#1a1214; --card:#261a1d; --ink:#f3eaec; --muted:#a8969a; --line:#3d2b30;
+    --accent:#e8909c; --accent-ink:#2a0b10; --accent-soft:#3d1a21; --warm:#e0b84a; --ok:#e8909c;}
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -91,9 +91,15 @@ details summary{cursor:pointer;font-weight:600}
 /* ---------- Program ---------- */
 // load: label for the extra-load column (null = bodyweight only). prog: suggest weight bumps.
 const WEEKS = 6;
+// Weight suggestions: from week 2, previous weight +5%, rounded to a loadable weight.
+// bar = fixed starting weight (e.g. trap bar), step = smallest total jump from there.
+// Trap bar: 1.25 kg plates on each side = 2.5 kg total steps. Other lifts: DEFAULT_STEP.
+const PLATES = [25,20,15,10,5,2.5,1.25];
+const DEFAULT_STEP = 2;   // kg: change if your dumbbells/kettlebells go up differently
+const BUMP = 0.05;
 const DAYS = [
   { id:"mon", name:"Monday", focus:"Gym: lower body + power", ex:[
-    {id:"m1a", label:"1a", name:"Trap bar deadlift", sets:3, reps:6, load:"kg", prog:true, cue:"Flat back, push the floor away, stand tall. Control the way down. Every rep should look the same."},
+    {id:"m1a", label:"1a", name:"Trap bar deadlift", sets:3, reps:6, load:"kg", prog:true, bar:40, step:2.5, loadNote:"Log the total weight including the 40 kg bar.", cue:"Flat back, push the floor away, stand tall. Control the way down. Every rep should look the same."},
     {id:"m1b", label:"1b", name:"Pogo jumps", sets:3, reps:10, load:null, cue:"Stiff ankles, quick springy contacts, tall posture. Think \"hot floor\"."},
     {id:"m2a", label:"2a", name:"Goblet squat", sets:3, reps:6, load:"kg", prog:true, cue:"Dumbbell or kettlebell at your chest. Chest tall, sit between the hips, heels down."},
     {id:"m2b", label:"2b", name:"Medicine ball slam", sets:3, reps:5, load:"ball kg", cue:"Reach tall, slam hard into the floor using your whole body. Max effort every rep."},
@@ -101,7 +107,7 @@ const DAYS = [
     {id:"m3b", label:"3b", name:"Leg raises", sets:3, reps:8, load:null, cue:"Lower back stays pressed down. Slow on the way down, no swinging."}
   ]},
   { id:"fri", name:"Friday", focus:"Gym: single leg + power", ex:[
-    {id:"f1a", label:"1a", name:"Single leg deadlift", sets:3, reps:8, perLeg:true, load:"kg", prog:true, cue:"Hinge at the hip, back leg reaches long, flat back, hips square. Light weight until balance is solid. Do all reps on one leg, then switch."},
+    {id:"f1a", label:"1a", name:"Single leg deadlift", sets:3, reps:8, perLeg:true, load:"kg", prog:true, loadNote:"Kettlebell weight in kg.", cue:"Hold a kettlebell. Hinge at the hip, back leg reaches long, flat back, hips square. Light weight until balance is solid. Do all reps on one leg, then switch."},
     {id:"f1b", label:"1b", name:"Broad jumps", sets:3, reps:5, load:"cm", cue:"Swing arms, jump forward, stick the landing for a second. Log your distance if you measure it."},
     {id:"f2a", label:"2a", name:"Bulgarian split squat", sets:3, reps:5, perLeg:true, load:"kg", prog:true, cue:"Back foot on a bench, front knee tracks over the toes, drop straight down. Do all reps on one leg, then switch."},
     {id:"f2b", label:"2b", name:"Pogo jumps", sets:3, reps:10, load:null, cue:"Stiff ankles, quick springy contacts, tall posture."},
@@ -141,6 +147,19 @@ function lastBest(exId, week){
   }
   return null;
 }
+function suggestLoad(ex, prev){
+  const bar = ex.bar || 0, step = ex.step || DEFAULT_STEP;
+  const v = Math.round((prev*(1+BUMP) - bar) / step) * step + bar;
+  return Math.max(v, bar);
+}
+function plateText(total, bar){
+  let side = (total - bar) / 2;
+  if(side < 0.001) return "bar only";
+  const out = [];
+  for(const p of PLATES){ while(side >= p - 1e-9){ out.push(p); side -= p; } }
+  return out.join(" + ") + " each side";
+}
+const fmt = n => String(+n.toFixed(2));
 function dayCompletion(w, day){
   let total=0, done=0;
   day.ex.forEach(ex => {
@@ -194,25 +213,40 @@ function renderTrain(){
     const log = getLog(w, ex.id);
     const rows = Math.max(ex.sets, log ? log.sets.length : 0);
     const last = lastBest(ex.id, w);
-    let hint = "";
+    let hint = "", sugg = null;
     if(last){
-      const bestTxt = (last.best.w!=="" && ex.load ? esc(last.best.w)+" "+ex.load+" × " : "") + esc(last.best.r || ex.reps) + (ex.load===null ? " reps" : "");
+      const prevW = num(last.best.w);
       const hitAll = last.sets.length >= ex.sets && last.sets.every(s => (num(s.r)||0) >= ex.reps);
-      let tip = " · Match it or beat it with better form.";
-      if(hitAll && ex.prog) tip = " · You got every rep. If it felt solid, add a small bit of weight (1–2.5 kg).";
-      else if(hitAll && ex.load==="box cm") tip = " · Only go higher if landings are quiet and balanced.";
-      hint = `Last time (week ${last.week}): <b>${bestTxt}</b>${tip}`;
+      const bestTxt = (last.best.w!=="" && ex.load ? esc(last.best.w)+" "+ex.load+" × " : "") + esc(last.best.r || ex.reps) + (ex.load===null ? " reps" : "");
+      hint = `Last time (week ${last.week}): <b>${bestTxt}</b>`;
+      if(ex.prog && prevW!==null && prevW>0){
+        sugg = suggestLoad(ex, prevW);
+        if(sugg > prevW){
+          hint += `<br>Suggested today: <b>${fmt(sugg)} kg</b> (+5%, rounded to what the gym can load)` +
+                  (ex.bar ? `<br><span class="muted">Plates: ${plateText(sugg, ex.bar)}</span>` : "") +
+                  (hitAll ? "" : `<br><span class="muted">Not every rep was done last time, so repeating ${fmt(prevW)} kg is fine too.</span>`) +
+                  ` <button data-fill="${ex.id}|${sugg}" style="margin-top:6px;min-height:34px">Use ${fmt(sugg)} kg</button>`;
+        } else {
+          hint += `<br>5% more rounds to the same weight, so repeat <b>${fmt(prevW)} kg</b> and focus on clean reps.`;
+          sugg = prevW;
+        }
+      } else if(ex.load==="box cm" && hitAll){
+        hint += " · Only go higher if landings are quiet and balanced.";
+      } else {
+        hint += " · Match it or beat it with better form.";
+      }
     }
     html += `<div class="card ex" data-ex="${ex.id}">
       <div class="row between wrap"><h3><span class="pill">${ex.label}</span> ${esc(ex.name)}</h3>
         <span class="target">${esc(targetText(ex))}</span></div>
       <p class="cue">${esc(ex.cue)}</p>
+      ${ex.loadNote ? `<p class="cue"><b>${esc(ex.loadNote)}</b></p>` : ""}
       ${hint ? `<p class="hint">${hint}</p>` : ""}
       <table class="sets"><thead><tr><th>Set</th><th>${ex.load ? esc(ex.load) : "Load"}</th><th>Reps</th><th>Done</th></tr></thead><tbody>`;
     for(let i=0;i<rows;i++){
       const s = (log && log.sets[i]) || {w:"",r:"",done:false};
       const loadCell = ex.load
-        ? `<input type="number" inputmode="decimal" step="any" min="0" placeholder="${last&&last.best.w!==""?esc(last.best.w):""}" value="${esc(s.w)}" data-ex="${ex.id}" data-i="${i}" data-f="w" aria-label="${esc(ex.name)} set ${i+1} ${esc(ex.load)}">`
+        ? `<input type="number" inputmode="decimal" step="any" min="0" placeholder="${sugg!==null?fmt(sugg):(last&&last.best.w!==""?esc(last.best.w):"")}" value="${esc(s.w)}" data-ex="${ex.id}" data-i="${i}" data-f="w" aria-label="${esc(ex.name)} set ${i+1} ${esc(ex.load)}">`
         : `<span class="muted small">BW</span>`;
       html += `<tr><td class="n">${i+1}</td>
         <td>${loadCell}</td>
@@ -337,6 +371,11 @@ app.addEventListener("click", e => {
   if(t.id==="prevW"){ S.week = Math.max(1,S.week-1); save(); render(); }
   else if(t.id==="nextW"){ S.week = Math.min(WEEKS,S.week+1); save(); render(); }
   else if(t.dataset.day!==undefined){ S.day = +t.dataset.day; save(); render(); }
+  else if(t.dataset.fill){
+    const [id, val] = t.dataset.fill.split("|"); const ex = ALL_EX.find(x=>x.id===id);
+    const log = ensureLog(S.week, id, ex.sets);
+    log.sets.forEach(st => { if(st.w==="") st.w = val; }); save(); render();
+  }
   else if(t.dataset.addset){
     const ex = ALL_EX.find(x=>x.id===t.dataset.addset);
     const log = ensureLog(S.week, ex.id, ex.sets); log.sets.push({w:"",r:"",done:false}); save(); render();
