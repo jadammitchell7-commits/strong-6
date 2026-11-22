@@ -95,21 +95,21 @@ const WEEKS = 6;
 // bar = fixed starting weight (e.g. trap bar), step = smallest total jump from there.
 // Trap bar: 1.25 kg plates on each side = 2.5 kg total steps. Other lifts: DEFAULT_STEP.
 const PLATES = [25,20,15,10,5,2.5,1.25];
-const DEFAULT_STEP = 2;   // kg: change if your dumbbells/kettlebells go up differently
+const DEFAULT_STEP = 2.5; // kg: dumbbells go up in 2.5 kg steps
 const BUMP = 0.05;
 const DAYS = [
   { id:"mon", name:"Monday", focus:"Gym: lower body + power", ex:[
-    {id:"m1a", label:"1a", name:"Trap bar deadlift", sets:3, reps:6, load:"kg", prog:true, bar:40, step:2.5, loadNote:"Log the total weight including the 40 kg bar.", cue:"Flat back, push the floor away, stand tall. Control the way down. Every rep should look the same."},
+    {id:"m1a", label:"1a", name:"Trap bar deadlift", sets:3, reps:6, load:"kg", prog:true, bar:40, step:2.5, trial:60, loadNote:"Log the total weight including the 40 kg bar.", cue:"Flat back, push the floor away, stand tall. Control the way down. Every rep should look the same."},
     {id:"m1b", label:"1b", name:"Pogo jumps", sets:3, reps:10, load:null, cue:"Stiff ankles, quick springy contacts, tall posture. Think \"hot floor\"."},
-    {id:"m2a", label:"2a", name:"Goblet squat", sets:3, reps:6, load:"kg", prog:true, cue:"Dumbbell or kettlebell at your chest. Chest tall, sit between the hips, heels down."},
+    {id:"m2a", label:"2a", name:"Goblet squat", sets:3, reps:6, load:"kg", prog:true, step:2.5, trial:20, loadNote:"Dumbbell weight in kg (2.5 kg steps).", cue:"Dumbbell or kettlebell at your chest. Chest tall, sit between the hips, heels down."},
     {id:"m2b", label:"2b", name:"Medicine ball slam", sets:3, reps:5, load:"ball kg", cue:"Reach tall, slam hard into the floor using your whole body. Max effort every rep."},
     {id:"m3a", label:"3a", name:"Box jumps", sets:3, reps:5, load:"box cm", cue:"Jump up, land softly and fully on the box, stand up, then step down. Reset between reps."},
     {id:"m3b", label:"3b", name:"Leg raises", sets:3, reps:8, load:null, cue:"Lower back stays pressed down. Slow on the way down, no swinging."}
   ]},
   { id:"fri", name:"Friday", focus:"Gym: single leg + power", ex:[
-    {id:"f1a", label:"1a", name:"Single leg deadlift", sets:3, reps:8, perLeg:true, load:"kg", prog:true, loadNote:"Kettlebell weight in kg.", cue:"Hold a kettlebell. Hinge at the hip, back leg reaches long, flat back, hips square. Light weight until balance is solid. Do all reps on one leg, then switch."},
+    {id:"f1a", label:"1a", name:"Single leg deadlift", sets:3, reps:8, perLeg:true, load:"kg", prog:true, weights:[20,24,28,32], loadNote:"Kettlebell weight in kg (gym has 20, 24, 28, 32).", cue:"Hold a kettlebell. Hinge at the hip, back leg reaches long, flat back, hips square. Light weight until balance is solid. Do all reps on one leg, then switch."},
     {id:"f1b", label:"1b", name:"Broad jumps", sets:3, reps:5, load:"cm", cue:"Swing arms, jump forward, stick the landing for a second. Log your distance if you measure it."},
-    {id:"f2a", label:"2a", name:"Bulgarian split squat", sets:3, reps:5, perLeg:true, load:"kg", prog:true, cue:"Back foot on a bench, front knee tracks over the toes, drop straight down. Do all reps on one leg, then switch."},
+    {id:"f2a", label:"2a", name:"Bulgarian split squat", sets:3, reps:5, perLeg:true, load:"kg", prog:true, step:2.5, loadNote:"Dumbbell weight in kg (2.5 kg steps).", cue:"Back foot on a bench, front knee tracks over the toes, drop straight down. Do all reps on one leg, then switch."},
     {id:"f2b", label:"2b", name:"Pogo jumps", sets:3, reps:10, load:null, cue:"Stiff ankles, quick springy contacts, tall posture."},
     {id:"f3a", label:"3a", name:"Weighted seated jumps", sets:3, reps:3, repText:"3 weighted + 1 no weight", load:"kg", cue:"Sit on a box, jump up from a dead start. Do 3 reps holding the weight, then rep 4 without it. Log the weighted reps."},
     {id:"f3b", label:"3b", name:"Ab rollout", sets:3, reps:8, load:null, cue:"Brace the core, roll out only as far as your lower back stays flat. Stop before it sags."}
@@ -147,7 +147,15 @@ function lastBest(exId, week){
   }
   return null;
 }
+function nextUp(ex, prev){
+  if(ex.weights){ const n = ex.weights.find(x => x > prev + 1e-9); return n === undefined ? null : n; }
+  return prev + (ex.step || DEFAULT_STEP);
+}
 function suggestLoad(ex, prev){
+  if(ex.weights){
+    const t = prev * (1 + BUMP);
+    return ex.weights.reduce((a,b) => Math.abs(b-t) < Math.abs(a-t) ? b : a);
+  }
   const bar = ex.bar || 0, step = ex.step || DEFAULT_STEP;
   const v = Math.round((prev*(1+BUMP) - bar) / step) * step + bar;
   return Math.max(v, bar);
@@ -214,25 +222,38 @@ function renderTrain(){
     const rows = Math.max(ex.sets, log ? log.sets.length : 0);
     const last = lastBest(ex.id, w);
     let hint = "", sugg = null;
+    let prevW = null, label = "", hitAll = true, bestTxt = "";
     if(last){
-      const prevW = num(last.best.w);
-      const hitAll = last.sets.length >= ex.sets && last.sets.every(s => (num(s.r)||0) >= ex.reps);
-      const bestTxt = (last.best.w!=="" && ex.load ? esc(last.best.w)+" "+ex.load+" × " : "") + esc(last.best.r || ex.reps) + (ex.load===null ? " reps" : "");
-      hint = `Last time (week ${last.week}): <b>${bestTxt}</b>`;
+      prevW = num(last.best.w);
+      hitAll = last.sets.length >= ex.sets && last.sets.every(s => (num(s.r)||0) >= ex.reps);
+      bestTxt = (last.best.w!=="" && ex.load ? esc(last.best.w)+" "+ex.load+" × " : "") + esc(last.best.r || ex.reps) + (ex.load===null ? " reps" : "");
+      label = `Last time (week ${last.week})`;
+    } else if(ex.trial){
+      prevW = ex.trial; bestTxt = fmt(ex.trial) + " kg"; label = "Trial run";
+    }
+    if(last || ex.trial){
+      const plates = v => ex.bar ? `<br><span class="muted">Plates: ${plateText(v, ex.bar)}</span>` : "";
+      const btn = v => ` <button data-fill="${ex.id}|${v}" style="margin-top:6px;min-height:34px">Use ${fmt(v)} kg</button>`;
+      hint = `${label}: <b>${bestTxt}</b>`;
       if(ex.prog && prevW!==null && prevW>0){
-        sugg = suggestLoad(ex, prevW);
-        if(sugg > prevW){
-          hint += `<br>Suggested today: <b>${fmt(sugg)} kg</b> (+5%, rounded to what the gym can load)` +
-                  (ex.bar ? `<br><span class="muted">Plates: ${plateText(sugg, ex.bar)}</span>` : "") +
-                  (hitAll ? "" : `<br><span class="muted">Not every rep was done last time, so repeating ${fmt(prevW)} kg is fine too.</span>`) +
-                  ` <button data-fill="${ex.id}|${sugg}" style="margin-top:6px;min-height:34px">Use ${fmt(sugg)} kg</button>`;
-        } else {
-          hint += `<br>5% more rounds to the same weight, so repeat <b>${fmt(prevW)} kg</b> and focus on clean reps.`;
+        if(!last && w===1){
           sugg = prevW;
+          hint += `<br>Start at <b>${fmt(prevW)} kg</b>` + plates(prevW) + btn(prevW);
+        } else {
+          sugg = suggestLoad(ex, prevW);
+          if(sugg > prevW){
+            hint += `<br>Suggested today: <b>${fmt(sugg)} kg</b> (+5%, rounded to what the gym can load)` + plates(sugg) +
+                    (hitAll ? "" : `<br><span class="muted">Not every rep was done last time, so repeating ${fmt(prevW)} kg is fine too.</span>`) + btn(sugg);
+          } else {
+            sugg = prevW;
+            const nx = nextUp(ex, prevW);
+            hint += `<br>5% more rounds to the same weight, so repeat <b>${fmt(prevW)} kg</b> and focus on clean reps.` +
+                    (nx!==null ? `<br><span class="muted">Next weight up is ${fmt(nx)} kg (+${Math.round((nx/prevW-1)*100)}%). Move up once every rep of every set is clean.</span>` : `<br><span class="muted">That's the heaviest available.</span>`) + btn(prevW);
+          }
         }
-      } else if(ex.load==="box cm" && hitAll){
+      } else if(last && ex.load==="box cm" && hitAll){
         hint += " · Only go higher if landings are quiet and balanced.";
-      } else {
+      } else if(last){
         hint += " · Match it or beat it with better form.";
       }
     }
