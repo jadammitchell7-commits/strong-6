@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<title>Strong 12 – 12-week workout tracker</title>
+<style>
+:root{
+  --bg:#f6f7f5; --card:#fff; --ink:#1b2321; --muted:#64706c; --line:#e1e6e3;
+  --accent:#0f766e; --accent-ink:#fff; --accent-soft:#d9f0ec; --warm:#e8590c; --ok:#2f9e44;
+}
+@media (prefers-color-scheme: dark){
+  :root{--bg:#121816; --card:#1b2421; --ink:#eaf0ed; --muted:#93a39d; --line:#2b3733;
+    --accent:#2dd4bf; --accent-ink:#06201c; --accent-soft:#16332f; --warm:#ff8a4c; --ok:#69db7c;}
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+header{padding:18px 16px 8px;max-width:720px;margin:0 auto}
+h1{font-size:1.35rem;margin:0}
+.sub{color:var(--muted);font-size:.9rem;margin-top:2px}
+main{max-width:720px;margin:0 auto;padding:0 12px 24px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:12px 0}
+.row{display:flex;gap:8px;align-items:center}
+.between{justify-content:space-between}
+.wrap{flex-wrap:wrap}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);
+  border-radius:10px;padding:8px 12px;min-height:40px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid var(--warm);outline-offset:1px}
+.weekbar{display:flex;align-items:center;gap:8px}
+.weekbar .label{flex:1;text-align:center}
+.weekbar .label b{font-size:1.1rem}
+.pill{display:inline-block;font-size:.75rem;padding:2px 8px;border-radius:99px;background:var(--accent-soft);color:var(--accent);font-weight:600}
+.pill.easy{background:#fff0e6;color:var(--warm)}
+@media (prefers-color-scheme: dark){.pill.easy{background:#3a2518}}
+.days{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.days button{padding:8px 6px;text-align:center;line-height:1.2}
+.days button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.days small{display:block;opacity:.85;font-size:.72rem}
+.ex h3{margin:0;font-size:1.05rem}
+.ex .target{color:var(--muted);font-size:.9rem}
+.cue{font-size:.85rem;color:var(--muted);margin:6px 0 0}
+.hint{font-size:.85rem;margin:8px 0 0;padding:6px 10px;border-radius:8px;background:var(--accent-soft);color:var(--ink)}
+table.sets{width:100%;border-collapse:collapse;margin-top:10px}
+.sets th{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);text-align:left;font-weight:600;padding:0 4px 4px}
+.sets td{padding:3px 4px}
+.sets td.n{width:28px;color:var(--muted);font-weight:600}
+input[type=number],textarea,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;width:100%;min-height:42px}
+input[type=number]{max-width:110px}
+input[type=checkbox]{width:26px;height:26px;accent-color:var(--ok)}
+textarea{min-height:64px;resize:vertical}
+.progress{height:8px;background:var(--line);border-radius:99px;overflow:hidden}
+.progress>i{display:block;height:100%;background:var(--ok);width:0}
+nav.tabs{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);display:flex;
+  padding-bottom:env(safe-area-inset-bottom);z-index:5}
+nav.tabs button{flex:1;border:0;border-radius:0;background:transparent;min-height:56px;color:var(--muted)}
+nav.tabs button[aria-selected=true]{color:var(--accent);font-weight:700;box-shadow:inset 0 3px 0 var(--accent)}
+table.grid{width:100%;border-collapse:collapse;font-size:.9rem}
+.grid th,.grid td{padding:6px 4px;text-align:center;border-bottom:1px solid var(--line)}
+.grid td:first-child,.grid th:first-child{text-align:left}
+.dot{display:inline-block;width:18px;height:18px;border-radius:50%;border:2px solid var(--line);vertical-align:middle}
+.dot.part{background:linear-gradient(90deg,var(--ok) 50%,transparent 50%);border-color:var(--ok)}
+.dot.full{background:var(--ok);border-color:var(--ok)}
+.muted{color:var(--muted)}
+.small{font-size:.85rem}
+ul.tight{margin:.4rem 0;padding-left:1.2rem}
+ul.tight li{margin:.2rem 0}
+svg text{fill:var(--muted);font-size:10px}
+.sr{position:absolute;left:-9999px}
+details summary{cursor:pointer;font-weight:600}
+</style>
+</head>
+<body>
+<header>
+  <h1>Strong 12</h1>
+  <div class="sub">12 weeks · 3 days a week · build strength with good technique</div>
+</header>
+<main id="app"></main>
+<nav class="tabs" role="tablist" aria-label="Sections">
+  <button role="tab" data-tab="train">Train</button>
+  <button role="tab" data-tab="progress">Progress</button>
+  <button role="tab" data-tab="guide">Guide</button>
+  <button role="tab" data-tab="data">Export</button>
+</nav>
+
+<script>
+"use strict";
+/* ---------- Program ---------- */
+const DAYS = [
+  { id:"d1", name:"Day 1", focus:"Legs + push", ex:[
+    {id:"squat",  name:"Goblet squat", type:"main", cue:"Hold one dumbbell at your chest. Sit between your hips, chest tall, heels down."},
+    {id:"bench",  name:"Dumbbell bench press", type:"main", cue:"Feet flat, shoulder blades back. Lower under control, press up. Push-ups are a fine swap."},
+    {id:"rdl",    name:"Dumbbell Romanian deadlift", type:"acc", cue:"Soft knees, hips go back, flat back. Feel it in the hamstrings."},
+    {id:"row1",   name:"Seated cable row", type:"acc", cue:"Squeeze shoulder blades together, don't swing your body."},
+    {id:"plank",  name:"Plank", type:"core", cue:"Straight line from head to heels. Stop when form slips."}
+  ]},
+  { id:"d2", name:"Day 2", focus:"Hinge + pull", ex:[
+    {id:"trap",   name:"Trap bar deadlift", type:"main", cue:"Start light. Flat back, push the floor away, stand tall. Technique before weight."},
+    {id:"ohp",    name:"Dumbbell shoulder press", type:"main", cue:"Brace your core, press straight up, don't arch your lower back."},
+    {id:"split",  name:"Reverse lunge (each leg)", type:"acc", cue:"Step back, lower the back knee toward the floor, drive through the front heel."},
+    {id:"pull",   name:"Lat pulldown", type:"acc", cue:"Pull the bar to your upper chest, elbows down, no leaning way back."},
+    {id:"deadbug",name:"Dead bug", type:"core", cue:"Lower back stays flat to the floor. Slow and controlled. Count reps per side pair."}
+  ]},
+  { id:"d3", name:"Day 3", focus:"Full body", ex:[
+    {id:"stepup", name:"Step-up (each leg)", type:"main", cue:"Use a knee-height box. Push through the whole front foot, control the way down."},
+    {id:"incl",   name:"Incline push-up or incline DB press", type:"main", cue:"Body in a straight line. Make it harder by lowering the incline."},
+    {id:"bridge", name:"Glute bridge", type:"acc", cue:"Drive hips up, squeeze glutes at the top, ribs down."},
+    {id:"row2",   name:"One-arm dumbbell row", type:"acc", cue:"Flat back, pull elbow to hip. Keep the dumbbell path smooth."},
+    {id:"side",   name:"Side plank (each side)", type:"core", cue:"Hips stacked and lifted. Rest between sides."}
+  ]}
+];
+const ALL_EX = DAYS.flatMap(d => d.ex.map(e => ({...e, day:d.id})));
+const EASY_WEEKS = [4,8,12];
+const phaseOf = w => w<=4 ? {n:1,name:"Foundation"} : w<=8 ? {n:2,name:"Build"} : {n:3,name:"Strength"};
+const isEasy = w => EASY_WEEKS.includes(w);
+function setsFor(w, ex){ if(isEasy(w)) return 2; return (w<=2) ? 2 : 3; }
+function repsFor(w, ex){
+  if(ex.type==="core") return {lo:20, hi:40, unit:"sec"};
+  const p = phaseOf(w).n;
+  if(p===1) return {lo:10, hi:12, unit:"reps"};
+  if(p===2) return {lo:8,  hi:12, unit:"reps"};
+  return ex.type==="main" ? {lo:6, hi:10, unit:"reps"} : {lo:8, hi:12, unit:"reps"};
+}
+
+/* ---------- State ---------- */
+const KEY = "strong12-v1";
+const DEFAULTS = () => ({unit:"kg", week:1, day:0, tab:"train", logs:{}, notes:{}});
+let S;
+try { S = Object.assign(DEFAULTS(), JSON.parse(localStorage.getItem(KEY) || "{}")); } catch(e){ S = DEFAULTS(); }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+const lk = (w,exId) => `${w}|${exId}`;
+function getLog(w,exId){ return S.logs[lk(w,exId)]; }
+function ensureLog(w,exId,n){
+  const k = lk(w,exId);
+  const log = S.logs[k] || (S.logs[k] = {sets:[]});
+  while(log.sets.length < n) log.sets.push({w:"", r:"", done:false});
+  return log;
+}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num = v => { const n = parseFloat(v); return isFinite(n) ? n : null; };
+
+/* ---------- Helpers ---------- */
+function lastBest(exId, week){
+  for(let w=week-1; w>=1; w--){
+    const log = getLog(w, exId);
+    if(!log) continue;
+    const done = log.sets.filter(s => s.done && num(s.r)!==null);
+    if(!done.length) continue;
+    const best = done.reduce((a,b) => ((num(b.w)||0) > (num(a.w)||0) || ((num(b.w)||0)===(num(a.w)||0) && num(b.r)>num(a.r))) ? b : a);
+    return {week:w, best, sets:done, all:log.sets};
+  }
+  return null;
+}
+function dayCompletion(w, day){
+  let total=0, done=0;
+  day.ex.forEach(ex => {
+    const n = setsFor(w,ex); total += n;
+    const log = getLog(w, ex.id);
+    if(log) done += Math.min(n, log.sets.filter(s => s.done).length);
+  });
+  return total ? done/total : 0;
+}
+function topWeight(w, exId){
+  const log = getLog(w, exId); if(!log) return null;
+  const ws = log.sets.filter(s => s.done && num(s.w)!==null).map(s => num(s.w));
+  return ws.length ? Math.max(...ws) : null;
+}
+
+/* ---------- Rendering ---------- */
+const app = document.getElementById("app");
+function render(){
+  document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab===S.tab));
+  ({train:renderTrain, progress:renderProgress, guide:renderGuide, data:renderData})[S.tab]();
+}
+
+function renderTrain(){
+  const w = S.week, ph = phaseOf(w), day = DAYS[S.day];
+  const pct = Math.round(dayCompletion(w, day)*100);
+  const repsExample = repsFor(w, {type:"main"});
+  let html = `
+  <div class="card">
+    <div class="weekbar">
+      <button id="prevW" aria-label="Previous week" ${w<=1?"disabled":""}>‹</button>
+      <div class="label"><b>Week ${w} of 12</b><br>
+        <span class="pill ${isEasy(w)?"easy":""}">${isEasy(w)?"Easy week":ph.name}</span></div>
+      <button id="nextW" aria-label="Next week" ${w>=12?"disabled":""}>›</button>
+    </div>
+    <p class="small muted" style="margin:10px 0 0">${
+      isEasy(w) ? "Easy week: only 2 sets, use the same weights as last week and stop with plenty left. Recovery is when you get stronger." :
+      w<=4 ? "Learn the moves. Light weights, perfect form, 2–3 reps left in the tank." :
+      w<=8 ? "Add weight a little at a time once you hit the top of the rep range on every set." :
+      "Heavier main lifts with fewer reps. Technique stays the boss."}</p>
+    <div class="days" role="group" aria-label="Workout day">
+      ${DAYS.map((d,i)=>`<button data-day="${i}" aria-pressed="${i===S.day}">${d.name}<small>${d.focus}</small></button>`).join("")}
+    </div>
+  </div>
+  <div class="card">
+    <div class="row between"><b>${day.name}: ${day.focus}</b><span class="small muted">${pct}% done</span></div>
+    <div class="progress" aria-hidden="true"><i style="width:${pct}%"></i></div>
+    <details style="margin-top:10px"><summary>Warm-up (5–8 min)</summary>
+      <ul class="tight small">
+        <li>2–3 min easy cardio (bike, row, brisk walk)</li>
+        <li>10 bodyweight squats, 10 hip hinges, 10 arm circles each way</li>
+        <li>1–2 light warm-up sets of your first exercise</li>
+      </ul></details>
+  </div>`;
+  day.ex.forEach(ex => {
+    const n = setsFor(w, ex), r = repsFor(w, ex);
+    const log = getLog(w, ex.id);
+    const rows = Math.max(n, log ? log.sets.length : 0);
+    const last = lastBest(ex.id, w);
+    let hint = "";
+    if(last && ex.type!=="core"){
+      const allHitTop = last.sets.length >= setsFor(last.week, ex) && last.sets.every(s => num(s.r) >= r.hi);
+      hint = `Last time (week ${last.week}): <b>${esc(last.best.w||"BW")}${last.best.w?" "+S.unit:""} × ${esc(last.best.r)}</b>` +
+        (allHitTop ? ` · You hit the top of the range. Try a small bump (about ${S.unit==="kg"?"1–2.5 kg":"2.5–5 lb"}).` : ` · Match it or beat it by a rep.`);
+    } else if(last){
+      hint = `Last time (week ${last.week}): <b>${esc(last.best.r)} sec</b>`;
+    }
+    html += `<div class="card ex" data-ex="${ex.id}">
+      <div class="row between wrap"><h3>${esc(ex.name)}</h3>
+        <span class="target">${n} × ${r.lo}–${r.hi} ${r.unit}</span></div>
+      <p class="cue">${esc(ex.cue)}</p>
+      ${hint ? `<p class="hint">${hint}</p>` : ""}
+      <table class="sets"><thead><tr><th>Set</th><th>${S.unit}</th><th>${r.unit}</th><th>Done</th></tr></thead><tbody>`;
+    for(let i=0;i<rows;i++){
+      const s = (log && log.sets[i]) || {w:"",r:"",done:false};
+      html += `<tr><td class="n">${i+1}</td>
+        <td><input type="number" inputmode="decimal" step="any" min="0" placeholder="${last&&last.best.w?esc(last.best.w):"BW"}" value="${esc(s.w)}" data-ex="${ex.id}" data-i="${i}" data-f="w" aria-label="${esc(ex.name)} set ${i+1} weight"></td>
+        <td><input type="number" inputmode="numeric" step="1" min="0" placeholder="${r.hi}" value="${esc(s.r)}" data-ex="${ex.id}" data-i="${i}" data-f="r" aria-label="${esc(ex.name)} set ${i+1} ${r.unit}"></td>
+        <td><input type="checkbox" ${s.done?"checked":""} data-ex="${ex.id}" data-i="${i}" data-f="done" aria-label="${esc(ex.name)} set ${i+1} done"></td></tr>`;
+    }
+    html += `</tbody></table>
+      <div class="row" style="margin-top:6px"><button data-addset="${ex.id}">+ Add set</button></div>
+    </div>`;
+  });
+  const dayNote = (S.notes[`${w}|${day.id}`]) || "";
+  html += `<div class="card"><label for="dnote"><b>How did it feel?</b></label>
+    <p class="small muted" style="margin:2px 0 8px">Energy, sleep, anything that hurt, wins worth remembering.</p>
+    <textarea id="dnote" data-note="${w}|${day.id}">${esc(dayNote)}</textarea></div>`;
+  app.innerHTML = html;
+}
+
+function renderProgress(){
+  const sel = S.chartEx && ALL_EX.find(e=>e.id===S.chartEx) ? S.chartEx : "trap";
+  const ex = ALL_EX.find(e => e.id===sel);
+  const pts = [];
+  for(let w=1; w<=12; w++){ const t = topWeight(w, sel); if(t!==null) pts.push({w, v:t}); }
+  // chart
+  const W=320,H=170,pl=30,pr=10,pt=10,pb=24;
+  const maxV = Math.max(10, ...pts.map(p=>p.v)); const top = Math.ceil(maxV*1.15/5)*5;
+  const x = w => pl + (w-1)*(W-pl-pr)/11, y = v => H-pb - v/top*(H-pt-pb);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Top weight per week for ${esc(ex.name)}">`;
+  for(let i=0;i<=4;i++){ const v = top*i/4; svg += `<line x1="${pl}" x2="${W-pr}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${pl-4}" y="${y(v)+3}" text-anchor="end">${Math.round(v)}</text>`; }
+  for(let w=1; w<=12; w++) svg += `<text x="${x(w)}" y="${H-8}" text-anchor="middle">${w}</text>`;
+  if(pts.length){
+    svg += `<polyline fill="none" stroke="var(--accent)" stroke-width="2.5" points="${pts.map(p=>`${x(p.w)},${y(p.v)}`).join(" ")}"/>`;
+    pts.forEach(p => svg += `<circle cx="${x(p.w)}" cy="${y(p.v)}" r="4" fill="var(--accent)"><title>Week ${p.w}: ${p.v} ${S.unit}</title></circle>`);
+  } else svg += `<text x="${W/2}" y="${H/2}" text-anchor="middle">Log some sets to see your line</text>`;
+  svg += `</svg>`;
+  const first = pts[0], lastp = pts[pts.length-1];
+  const change = (first && lastp && lastp.w!==first.w) ? `${lastp.v-first.v>=0?"+":""}${+(lastp.v-first.v).toFixed(1)} ${S.unit} since week ${first.w}` : "";
+
+  let totalDone=0;
+  const grid = [];
+  for(let w=1; w<=12; w++){
+    const cells = DAYS.map(d => dayCompletion(w,d));
+    cells.forEach((c,i)=>{ if(c>=0.8) totalDone++; });
+    grid.push(`<tr><td>Wk ${w}${isEasy(w)?" <span class='pill easy'>easy</span>":""}</td>${cells.map(c=>`<td><span class="dot ${c>=0.8?"full":c>0?"part":""}" title="${Math.round(c*100)}%"></span></td>`).join("")}</tr>`);
+  }
+  app.innerHTML = `
+  <div class="card"><div class="row between"><b>Workouts finished</b><span><b>${totalDone}</b> <span class="muted">/ 36</span></span></div>
+    <div class="progress" aria-hidden="true"><i style="width:${Math.round(totalDone/36*100)}%"></i></div>
+    <table class="grid" style="margin-top:10px"><thead><tr><th></th>${DAYS.map(d=>`<th>${d.name}</th>`).join("")}</tr></thead><tbody>${grid.join("")}</tbody></table>
+    <p class="small muted">Filled = 80%+ of sets done. Half = started.</p></div>
+  <div class="card"><label for="chartEx"><b>Top weight by week</b></label>
+    <select id="chartEx" style="margin:8px 0">${ALL_EX.map(e=>`<option value="${e.id}" ${e.id===sel?"selected":""}>${esc(e.name)}</option>`).join("")}</select>
+    ${svg}<p class="small muted" style="margin:4px 0 0">${change || "Heaviest completed set each week (" + S.unit + ")."}</p></div>`;
+}
+
+function renderGuide(){
+  app.innerHTML = `
+  <div class="card"><b>How this works</b>
+    <ul class="tight small">
+      <li><b>3 days a week</b> with a rest day in between (e.g. Mon / Wed / Fri). Each workout is about 45–60 minutes.</li>
+      <li><b>Weeks 1–4 Foundation</b> (10–12 reps), <b>5–8 Build</b> (8–12), <b>9–12 Strength</b> (6–10 on main lifts).</li>
+      <li><b>Weeks 4, 8 and 12 are easy weeks</b> (2 sets) so your body can catch up.</li>
+      <li><b>Pick a weight</b> where the last 2–3 reps of each set feel tough but your form stays clean. If form slips, drop the weight.</li>
+      <li><b>Progress</b>: when you hit the top of the rep range on every set, add a small amount of weight next time and work back up.</li>
+      <li>Rest 60–90 seconds between sets (2 minutes after heavy deadlifts).</li>
+    </ul></div>
+  <div class="card"><b>Safety</b>
+    <ul class="tight small">
+      <li>Train with a coach, parent or experienced adult nearby, especially for deadlifts and bench press. Use safety bars or a spotter on the bench.</li>
+      <li>Learn each move with just the bar or very light weight first.</li>
+      <li>Sharp or joint pain means stop. Muscle burn and tiredness are normal.</li>
+      <li>Eat enough, drink water and sleep 8–10 hours. Fueling matters more than the program.</li>
+      <li>If you have a medical condition or an injury, check with a doctor before starting.</li>
+      <li>This is about getting strong and confident, not about body size. Progress means lifting better than you did last week.</li>
+    </ul></div>
+  <div class="card"><b>Swap guide</b>
+    <ul class="tight small">
+      <li>No trap bar? Use a dumbbell or kettlebell deadlift from a raised height.</li>
+      <li>No cable machine? Use a resistance-band row or pulldown.</li>
+      <li>Not ready for a bench press? Do push-ups, and raise the hands on a bench to make them easier.</li>
+    </ul></div>`;
+}
+
+function renderData(){
+  app.innerHTML = `
+  <div class="card"><b>Weight units</b>
+    <div class="row" style="margin-top:8px">
+      <button data-unit="kg" aria-pressed="${S.unit==="kg"}" class="${S.unit==="kg"?"primary":""}">kg</button>
+      <button data-unit="lb" aria-pressed="${S.unit==="lb"}" class="${S.unit==="lb"?"primary":""}">lb</button>
+    </div><p class="small muted">Changing this only changes the label. It doesn't convert numbers you've already entered.</p></div>
+  <div class="card"><b>Export to a spreadsheet</b>
+    <p class="small muted">Downloads a CSV with every set you've logged. It opens in Excel, Numbers and Google Sheets.</p>
+    <button class="primary" id="csv">Download CSV</button></div>
+  <div class="card"><b>Back up and restore</b>
+    <p class="small muted">Your log is saved in this browser on this device only. Download a backup now and then, or to move to a new phone.</p>
+    <div class="row wrap"><button id="bk">Download backup</button>
+    <button id="rs">Restore backup…</button><input id="file" type="file" accept="application/json" class="sr" tabindex="-1"></div></div>
+  <div class="card"><b>Start over</b>
+    <p class="small muted">Erases everything logged on this device.</p>
+    <button id="wipe">Erase my log</button></div>`;
+}
+
+/* ---------- Export ---------- */
+function download(name, text, mime){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], {type:mime}));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+function csvCell(v){ v = String(v ?? ""); return /[",\n\r]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
+function buildCSV(){
+  const rows = [["Week","Phase","Day","Exercise","Set","Weight","Unit","Reps or seconds","Done","Day notes"]];
+  for(let w=1; w<=12; w++) DAYS.forEach(d => {
+    let noteUsed = false;
+    d.ex.forEach(ex => {
+      const log = getLog(w, ex.id); if(!log) return;
+      log.sets.forEach((s,i) => {
+        if(s.w==="" && s.r==="" && !s.done) return;
+        const note = noteUsed ? "" : (S.notes[`${w}|${d.id}`]||""); noteUsed = true;
+        rows.push([w, isEasy(w)?"Easy week":phaseOf(w).name, d.name, ex.name, i+1, s.w, s.w!==""?S.unit:"", s.r, s.done?"yes":"no", note]);
+      });
+    });
+  });
+  return "﻿" + rows.map(r => r.map(csvCell).join(",")).join("\r\n");
+}
+
+/* ---------- Events ---------- */
+document.querySelector("nav.tabs").addEventListener("click", e => {
+  const b = e.target.closest("button[data-tab]"); if(!b) return;
+  S.tab = b.dataset.tab; save(); render(); window.scrollTo(0,0);
+});
+app.addEventListener("click", e => {
+  const t = e.target.closest("button"); if(!t) return;
+  if(t.id==="prevW"){ S.week = Math.max(1,S.week-1); save(); render(); }
+  else if(t.id==="nextW"){ S.week = Math.min(12,S.week+1); save(); render(); }
+  else if(t.dataset.day!==undefined){ S.day = +t.dataset.day; save(); render(); }
+  else if(t.dataset.addset){
+    const ex = ALL_EX.find(x=>x.id===t.dataset.addset);
+    const log = ensureLog(S.week, ex.id, setsFor(S.week, ex)); log.sets.push({w:"",r:"",done:false}); save(); render();
+  }
+  else if(t.dataset.unit){ S.unit = t.dataset.unit; save(); render(); }
+  else if(t.id==="csv") download(`strong12-log-${new Date().toISOString().slice(0,10)}.csv`, buildCSV(), "text/csv;charset=utf-8");
+  else if(t.id==="bk") download(`strong12-backup-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(S), "application/json");
+  else if(t.id==="rs") document.getElementById("file").click();
+  else if(t.id==="wipe"){ if(confirm("Erase your whole log on this device? This can't be undone.")){ S = DEFAULTS(); save(); render(); } }
+});
+app.addEventListener("input", e => {
+  const el = e.target;
+  if(el.dataset.note){ S.notes[el.dataset.note] = el.value; save(); return; }
+  if(el.dataset.f && el.dataset.f!=="done"){
+    const ex = ALL_EX.find(x=>x.id===el.dataset.ex);
+    const log = ensureLog(S.week, ex.id, setsFor(S.week, ex));
+    log.sets[+el.dataset.i][el.dataset.f] = el.value; save();
+  }
+});
+app.addEventListener("change", e => {
+  const el = e.target;
+  if(el.id==="chartEx"){ S.chartEx = el.value; save(); render(); return; }
+  if(el.id==="file"){
+    const f = el.files[0]; if(!f) return;
+    f.text().then(txt => {
+      try{ const d = JSON.parse(txt); if(!d || typeof d!=="object" || !d.logs) throw 0;
+        S = Object.assign(DEFAULTS(), d); save(); S.tab="train"; render(); alert("Backup restored.");
+      }catch(err){ alert("That doesn't look like a Strong 12 backup file."); }
+    });
+    return;
+  }
+  if(el.dataset.f==="done"){
+    const ex = ALL_EX.find(x=>x.id===el.dataset.ex);
+    const log = ensureLog(S.week, ex.id, setsFor(S.week, ex));
+    log.sets[+el.dataset.i].done = el.checked; save(); render();
+  }
+});
+
+render();
+</script>
+</body>
+</html>
