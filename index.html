@@ -221,7 +221,7 @@ function renderTrain(){
     const log = getLog(w, ex.id);
     const rows = Math.max(ex.sets, log ? log.sets.length : 0);
     const last = lastBest(ex.id, w);
-    let hint = "", sugg = null;
+    let hint = "", sugg = null, bonus = false;
     let prevW = null, label = "", hitAll = true, bestTxt = "";
     if(last){
       prevW = num(last.best.w);
@@ -245,9 +245,9 @@ function renderTrain(){
             hint += `<br>Suggested today: <b>${fmt(sugg)} kg</b> (+5%, rounded to what the gym can load)` + plates(sugg) +
                     (hitAll ? "" : `<br><span class="muted">Not every rep was done last time, so repeating ${fmt(prevW)} kg is fine too.</span>`) + btn(sugg);
           } else {
-            sugg = prevW;
+            sugg = prevW; bonus = true;
             const nx = nextUp(ex, prevW);
-            hint += `<br>5% more rounds to the same weight, so repeat <b>${fmt(prevW)} kg</b> and focus on clean reps.` +
+            hint += `<br>5% more rounds to the same weight, so repeat <b>${fmt(prevW)} kg</b> and add 1 rep on the 3rd set (aim for <b>${ex.reps+1}</b>).` +
                     (nx!==null ? `<br><span class="muted">Next weight up is ${fmt(nx)} kg (+${Math.round((nx/prevW-1)*100)}%). Move up once every rep of every set is clean.</span>` : `<br><span class="muted">That's the heaviest available.</span>`) + btn(prevW);
           }
         }
@@ -259,7 +259,7 @@ function renderTrain(){
     }
     html += `<div class="card ex" data-ex="${ex.id}">
       <div class="row between wrap"><h3><span class="pill">${ex.label}</span> ${esc(ex.name)}</h3>
-        <span class="target">${esc(targetText(ex))}</span></div>
+        <span class="target">${esc(targetText(ex))}${bonus ? ` (set 3: ${ex.reps+1})` : ""}</span></div>
       <p class="cue">${esc(ex.cue)}</p>
       ${ex.loadNote ? `<p class="cue"><b>${esc(ex.loadNote)}</b></p>` : ""}
       ${hint ? `<p class="hint">${hint}</p>` : ""}
@@ -271,7 +271,7 @@ function renderTrain(){
         : `<span class="muted small">BW</span>`;
       html += `<tr><td class="n">${i+1}</td>
         <td>${loadCell}</td>
-        <td><input type="number" inputmode="numeric" step="1" min="0" placeholder="${ex.reps}" value="${esc(s.r)}" data-ex="${ex.id}" data-i="${i}" data-f="r" aria-label="${esc(ex.name)} set ${i+1} reps"></td>
+        <td><input type="number" inputmode="numeric" step="1" min="0" placeholder="${bonus && i===2 ? ex.reps+1 : ex.reps}" value="${esc(s.r)}" data-ex="${ex.id}" data-i="${i}" data-f="r" aria-label="${esc(ex.name)} set ${i+1} reps"></td>
         <td><input type="checkbox" ${s.done?"checked":""} data-ex="${ex.id}" data-i="${i}" data-f="done" aria-label="${esc(ex.name)} set ${i+1} done"></td></tr>`;
     }
     html += `</tbody></table>
