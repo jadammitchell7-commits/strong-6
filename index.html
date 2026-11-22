@@ -91,32 +91,32 @@ details summary{cursor:pointer;font-weight:600}
 /* ---------- Program ---------- */
 // load: label for the extra-load column (null = bodyweight only). prog: suggest weight bumps.
 const WEEKS = 6;
-// Weight suggestions: from week 2, previous weight +5%, rounded to a loadable weight.
-// bar = fixed starting weight (e.g. trap bar), step = smallest total jump from there.
-// Trap bar: 1.25 kg plates on each side = 2.5 kg total steps. Other lifts: DEFAULT_STEP.
+// Double progression (weighted lifts have reps..repMax): add reps at the same weight each week.
+// When every set reaches repMax, go up to the next available weight and restart at reps.
+// bar = fixed starting weight (e.g. trap bar), step = smallest total jump (trap bar: 1.25 kg plates each side = 2.5).
+// weights = list of the only weights available (kettlebells).
 const PLATES = [25,20,15,10,5,2.5,1.25];
 const DEFAULT_STEP = 2.5; // kg: dumbbells go up in 2.5 kg steps
-const BUMP = 0.05;
 const DAYS = [
   { id:"mon", name:"Monday", focus:"Gym: lower body + power", ex:[
-    {id:"m1a", label:"1a", name:"Trap bar deadlift", sets:3, reps:6, load:"kg", prog:true, bar:40, step:2.5, loadNote:"Log the total weight including the 40 kg bar.", cue:"Flat back, push the floor away, stand tall. Control the way down. Every rep should look the same."},
+    {id:"m1a", label:"1a", name:"Trap bar deadlift", sets:3, reps:6, repMax:8, load:"kg", prog:true, bar:40, step:2.5, loadNote:"Log the total weight including the 40 kg bar.", cue:"Flat back, push the floor away, stand tall. Control the way down. Every rep should look the same."},
     {id:"m1b", label:"1b", name:"Pogo jumps", sets:3, reps:10, load:null, cue:"Stiff ankles, quick springy contacts, tall posture. Think \"hot floor\"."},
-    {id:"m2a", label:"2a", name:"Goblet squat", sets:3, reps:6, load:"kg", prog:true, step:2.5, loadNote:"Dumbbell weight in kg (2.5 kg steps).", cue:"Dumbbell or kettlebell at your chest. Chest tall, sit between the hips, heels down."},
+    {id:"m2a", label:"2a", name:"Goblet squat", sets:3, reps:6, repMax:8, load:"kg", prog:true, step:2.5, loadNote:"Dumbbell weight in kg (2.5 kg steps).", cue:"Dumbbell or kettlebell at your chest. Chest tall, sit between the hips, heels down."},
     {id:"m2b", label:"2b", name:"Medicine ball slam", sets:3, reps:5, load:"ball kg", cue:"Reach tall, slam hard into the floor using your whole body. Max effort every rep."},
     {id:"m3a", label:"3a", name:"Box jumps", sets:3, reps:5, load:"box cm", cue:"Jump up, land softly and fully on the box, stand up, then step down. Reset between reps."},
     {id:"m3b", label:"3b", name:"Leg raises", sets:3, reps:8, load:null, cue:"Lower back stays pressed down. Slow on the way down, no swinging."}
   ]},
   { id:"fri", name:"Friday", focus:"Gym: single leg + power", ex:[
-    {id:"f1a", label:"1a", name:"Single leg deadlift", sets:3, reps:8, perLeg:true, load:"kg", prog:true, weights:[20,24,28,32], loadNote:"Kettlebell weight in kg (gym has 20, 24, 28, 32).", cue:"Hold a kettlebell. Hinge at the hip, back leg reaches long, flat back, hips square. Light weight until balance is solid. Do all reps on one leg, then switch."},
+    {id:"f1a", label:"1a", name:"Single leg deadlift", sets:3, reps:8, repMax:10, perLeg:true, load:"kg", prog:true, weights:[20,24,28,32], loadNote:"Kettlebell weight in kg (gym has 20, 24, 28, 32).", cue:"Hold a kettlebell. Hinge at the hip, back leg reaches long, flat back, hips square. Light weight until balance is solid. Do all reps on one leg, then switch."},
     {id:"f1b", label:"1b", name:"Broad jumps", sets:3, reps:5, load:"cm", cue:"Swing arms, jump forward, stick the landing for a second. Log your distance if you measure it."},
-    {id:"f2a", label:"2a", name:"Bulgarian split squat", sets:3, reps:5, perLeg:true, load:"kg", prog:true, step:2.5, loadNote:"Dumbbell weight in kg (2.5 kg steps).", cue:"Back foot on a bench, front knee tracks over the toes, drop straight down. Do all reps on one leg, then switch."},
+    {id:"f2a", label:"2a", name:"Bulgarian split squat", sets:3, reps:5, repMax:7, perLeg:true, load:"kg", prog:true, step:2.5, loadNote:"Dumbbell weight in kg (2.5 kg steps).", cue:"Back foot on a bench, front knee tracks over the toes, drop straight down. Do all reps on one leg, then switch."},
     {id:"f2b", label:"2b", name:"Pogo jumps", sets:3, reps:10, load:null, cue:"Stiff ankles, quick springy contacts, tall posture."},
     {id:"f3a", label:"3a", name:"Weighted seated jumps", sets:3, reps:3, repText:"3 weighted + 1 no weight", load:"kg", cue:"Sit on a box, jump up from a dead start. Do 3 reps holding the weight, then rep 4 without it. Log the weighted reps."},
     {id:"f3b", label:"3b", name:"Ab rollout", sets:3, reps:8, load:null, cue:"Brace the core, roll out only as far as your lower back stays flat. Stop before it sags."}
   ]}
 ];
 const ALL_EX = DAYS.flatMap(d => d.ex.map(e => ({...e, day:d.id})));
-const targetText = ex => ex.sets + " × " + (ex.repText || ex.reps) + (ex.perLeg ? " / leg" : "");
+const targetText = ex => ex.sets + " × " + (ex.repText || (ex.repMax ? ex.reps+"–"+ex.repMax : ex.reps)) + (ex.perLeg ? " / leg" : "");
 
 /* ---------- State ---------- */
 const KEY = "strong6-v1";
@@ -150,15 +150,6 @@ function lastBest(exId, week){
 function nextUp(ex, prev){
   if(ex.weights){ const n = ex.weights.find(x => x > prev + 1e-9); return n === undefined ? null : n; }
   return prev + (ex.step || DEFAULT_STEP);
-}
-function suggestLoad(ex, prev){
-  if(ex.weights){
-    const t = prev * (1 + BUMP);
-    return ex.weights.reduce((a,b) => Math.abs(b-t) < Math.abs(a-t) ? b : a);
-  }
-  const bar = ex.bar || 0, step = ex.step || DEFAULT_STEP;
-  const v = Math.round((prev*(1+BUMP) - bar) / step) * step + bar;
-  return Math.max(v, bar);
 }
 function plateText(total, bar){
   let side = (total - bar) / 2;
@@ -221,40 +212,52 @@ function renderTrain(){
     const log = getLog(w, ex.id);
     const rows = Math.max(ex.sets, log ? log.sets.length : 0);
     const last = lastBest(ex.id, w);
-    let hint = "", sugg = null, bonus = false;
-    let prevW = null, label = "", hitAll = true, bestTxt = "";
+    let hint = "", sugg = null, tgt = [];
+    const btn = v => ` <button data-fill="${ex.id}|${v}" style="margin-top:6px;min-height:34px">Use ${fmt(v)} kg</button>`;
+    const plates = v => ex.bar ? `<br><span class="muted">Plates: ${plateText(v, ex.bar)}</span>` : "";
     if(last){
-      prevW = num(last.best.w);
-      hitAll = last.sets.length >= ex.sets && last.sets.every(s => (num(s.r)||0) >= ex.reps);
-      bestTxt = (last.best.w!=="" && ex.load ? esc(last.best.w)+" "+ex.load+" × " : "") + esc(last.best.r || ex.reps) + (ex.load===null ? " reps" : "");
-      label = `Last time (week ${last.week})`;
-    }
-    if(last){
-      const plates = v => ex.bar ? `<br><span class="muted">Plates: ${plateText(v, ex.bar)}</span>` : "";
-      const btn = v => ` <button data-fill="${ex.id}|${v}" style="margin-top:6px;min-height:34px">Use ${fmt(v)} kg</button>`;
-      hint = `${label}: <b>${bestTxt}</b>`;
-      if(ex.prog && prevW!==null && prevW>0){
-        {
-          sugg = suggestLoad(ex, prevW);
-          if(sugg > prevW){
-            hint += `<br>Suggested today: <b>${fmt(sugg)} kg</b> (+5%, rounded to what the gym can load)` + plates(sugg) +
-                    (hitAll ? "" : `<br><span class="muted">Not every rep was done last time, so repeating ${fmt(prevW)} kg is fine too.</span>`) + btn(sugg);
-          } else {
-            sugg = prevW; bonus = true;
-            const nx = nextUp(ex, prevW);
-            hint += `<br>5% more rounds to the same weight, so repeat <b>${fmt(prevW)} kg</b> and add 1 rep on the 3rd set (aim for <b>${ex.reps+1}</b>).` +
-                    (nx!==null ? `<br><span class="muted">Next weight up is ${fmt(nx)} kg (+${Math.round((nx/prevW-1)*100)}%). Move up once every rep of every set is clean.</span>` : `<br><span class="muted">That's the heaviest available.</span>`) + btn(prevW);
-          }
+      const prevW = num(last.best.w);
+      const hitAll = last.sets.length >= ex.sets && last.sets.every(s => (num(s.r)||0) >= ex.reps);
+      const bestTxt = (last.best.w!=="" && ex.load ? esc(last.best.w)+" "+ex.load+" × " : "") + esc(last.best.r || ex.reps) + (ex.load===null ? " reps" : "");
+      hint = `Last time (week ${last.week}): <b>${bestTxt}</b>`;
+      if(ex.prog && ex.repMax && prevW!==null && prevW>0){
+        const lg = getLog(last.week, ex.id);
+        const atTop = i => { const st = lg.sets[i]; return st && st.done && num(st.w)===prevW ? st : null; };
+        let earned = true, underLow = false;
+        for(let i=0;i<ex.sets;i++){
+          const st = atTop(i);
+          if(!st || (num(st.r)||0) < ex.repMax) earned = false;
+          if(st && (num(st.r)||0) < ex.reps) underLow = true;
         }
-      } else if(last && ex.load==="box cm" && hitAll){
+        if(earned){
+          const nx = nextUp(ex, prevW);
+          if(nx!==null){
+            sugg = nx;
+            hint += `<br>You hit ${ex.repMax} reps on every set. Go up to <b>${fmt(nx)} kg</b> and start back at ${ex.reps} reps.` + plates(nx) + btn(nx);
+          } else {
+            sugg = prevW;
+            hint += `<br>You hit ${ex.repMax} reps on every set at the heaviest weight available. Stay at <b>${fmt(prevW)} kg</b> and make every rep slow and controlled.` + btn(prevW);
+          }
+        } else {
+          sugg = prevW;
+          for(let i=0;i<ex.sets;i++){
+            const st = atTop(i), pr = st ? (num(st.r)||0) : null;
+            tgt[i] = pr===null ? ex.reps : Math.min(ex.repMax, Math.max(ex.reps, pr+1));
+          }
+          hint += `<br>Stay at <b>${fmt(prevW)} kg</b> and add a rep: aim for <b>${tgt.join(" / ")}</b>.` + plates(prevW) +
+                  (underLow ? `<br><span class="muted">Some sets were under ${ex.reps} reps. If form slipped, drop one weight step.</span>` : "") + btn(prevW);
+        }
+      } else if(ex.load==="box cm" && hitAll){
         hint += " · Only go higher if landings are quiet and balanced.";
-      } else if(last){
+      } else {
         hint += " · Match it or beat it with better form.";
       }
+    } else if(ex.prog && ex.repMax){
+      hint = `Pick a weight you can lift for ${ex.reps} clean reps on every set. Each week, try to add a rep until you reach ${ex.repMax} on every set, then go up in weight.`;
     }
     html += `<div class="card ex" data-ex="${ex.id}">
       <div class="row between wrap"><h3><span class="pill">${ex.label}</span> ${esc(ex.name)}</h3>
-        <span class="target">${esc(targetText(ex))}${bonus ? ` (set 3: ${ex.reps+1})` : ""}</span></div>
+        <span class="target">${esc(targetText(ex))}</span></div>
       <p class="cue">${esc(ex.cue)}</p>
       ${ex.loadNote ? `<p class="cue"><b>${esc(ex.loadNote)}</b></p>` : ""}
       ${hint ? `<p class="hint">${hint}</p>` : ""}
@@ -266,7 +269,7 @@ function renderTrain(){
         : `<span class="muted small">BW</span>`;
       html += `<tr><td class="n">${i+1}</td>
         <td>${loadCell}</td>
-        <td><input type="number" inputmode="numeric" step="1" min="0" placeholder="${bonus && i===2 ? ex.reps+1 : ex.reps}" value="${esc(s.r)}" data-ex="${ex.id}" data-i="${i}" data-f="r" aria-label="${esc(ex.name)} set ${i+1} reps"></td>
+        <td><input type="number" inputmode="numeric" step="1" min="0" placeholder="${tgt[i]!==undefined ? tgt[i] : ex.reps}" value="${esc(s.r)}" data-ex="${ex.id}" data-i="${i}" data-f="r" aria-label="${esc(ex.name)} set ${i+1} reps"></td>
         <td><input type="checkbox" ${s.done?"checked":""} data-ex="${ex.id}" data-i="${i}" data-f="done" aria-label="${esc(ex.name)} set ${i+1} done"></td></tr>`;
     }
     html += `</tbody></table>
@@ -325,7 +328,7 @@ function renderGuide(){
       <li><b>Monday and Friday</b> are gym days, about 60 minutes each. Keep at least one rest day between them.</li>
       <li>Each day has 3 pairs. Do <b>a</b>, rest 60–90 sec, do <b>b</b>, rest, and repeat for 3 rounds. Rest about 2 minutes after heavy deadlifts and squats.</li>
       <li>Same sets and reps for all 6 weeks. Log the weight (or box height / jump distance) each set and tick it off.</li>
-      <li><b>Strength lifts</b> (6 reps): pick a weight that leaves 1–2 reps in the tank. When you get every rep with clean form, add a little next time.</li>
+      <li><b>Strength lifts</b> have a rep range (for example 6–8). Pick a weight where you can do the low number with clean form on every set. Each week, add a rep at the same weight. When every set reaches the top of the range, go up to the next weight and start back at the low number.</li>
       <li><b>Jumps and throws</b>: quality over fatigue. Fresh, fast, powerful reps. If landings get loud or sloppy, stop the set.</li>
     </ul></div>
   <div class="card"><b>Safety</b>
